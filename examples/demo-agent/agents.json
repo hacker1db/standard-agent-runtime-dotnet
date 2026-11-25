@@ -1,0 +1,250 @@
+{
+  "models": {
+    "local": {
+      "name": "local",
+      "provider": "openai",
+      "model": "qwen2.5:3b",
+      "baseUrl": "http://localhost:11434/v1",
+      "fallbacks": [
+        "mock"
+      ]
+    },
+    "mock": {
+      "name": "mock",
+      "provider": "mock",
+      "model": "mock"
+    },
+    "claude_sub": {
+      "name": "claude_sub",
+      "provider": "claude-cli",
+      "model": "sonnet"
+    },
+    "codex_sub": {
+      "name": "codex_sub",
+      "provider": "codex-cli",
+      "model": "default"
+    }
+  },
+  "prompts": {
+    "rules": {
+      "name": "rules",
+      "toolDescription": "shared rules",
+      "model": "local",
+      "prompt": "Always use a tool when one fits. Keep answers short."
+    },
+    "ops_main": {
+      "name": "ops_main",
+      "toolDescription": "Ops helper",
+      "model": "local",
+      "prompt": [
+        {
+          "type": "text",
+          "content": "You are {{ASSISTANT_NAME}}, a helpful ops assistant for {{TEAM}}.\n"
+        },
+        {
+          "type": "include",
+          "prompt": "rules"
+        }
+      ],
+      "env": {
+        "ASSISTANT_NAME": "Ferris",
+        "TEAM": "the demo team"
+      },
+      "tools": [
+        "calculator",
+        "current_time",
+        "remember",
+        "recall",
+        {
+          "name": "summarize",
+          "initUserMessageProperty": "text"
+        }
+      ]
+    },
+    "summarize": {
+      "name": "summarize",
+      "toolDescription": "Summarize a piece of text in one sentence.",
+      "model": "local",
+      "prompt": "Summarize the user's text in exactly one sentence."
+    },
+    "echo_main": {
+      "name": "echo_main",
+      "toolDescription": "Echo",
+      "model": "mock",
+      "prompt": "You echo.",
+      "tools": [
+        "calculator",
+        "remember",
+        "recall"
+      ]
+    },
+    "ops_claude": {
+      "name": "ops_claude",
+      "toolDescription": "Ops Helper (Claude subscription)",
+      "model": "claude_sub",
+      "prompt": [
+        {
+          "type": "include",
+          "prompt": "ops_main"
+        }
+      ],
+      "env": {
+        "ASSISTANT_NAME": "Ferris",
+        "TEAM": "the demo team"
+      },
+      "tools": [
+        "calculator",
+        "current_time",
+        "remember",
+        "recall",
+        {
+          "name": "summarize",
+          "initUserMessageProperty": "text"
+        }
+      ]
+    },
+    "ops_codex": {
+      "name": "ops_codex",
+      "toolDescription": "Ops Helper (Codex subscription)",
+      "model": "codex_sub",
+      "prompt": [
+        {
+          "type": "include",
+          "prompt": "ops_main"
+        }
+      ],
+      "env": {
+        "ASSISTANT_NAME": "Ferris",
+        "TEAM": "the demo team"
+      },
+      "tools": [
+        "calculator",
+        "current_time",
+        "remember",
+        "recall",
+        {
+          "name": "summarize",
+          "initUserMessageProperty": "text"
+        }
+      ]
+    }
+  },
+  "tools": {
+    "calculator": {
+      "description": "Evaluate an arithmetic expression like '2*(3+4)'.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "expression": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ]
+      },
+      "command": [
+        "python3",
+        "-I",
+        "tools/calculator.py"
+      ]
+    },
+    "current_time": {
+      "description": "Get the current UTC date and time.",
+      "args": {
+        "type": "object",
+        "properties": {}
+      },
+      "command": [
+        "python3",
+        "-I",
+        "tools/current_time.py"
+      ]
+    },
+    "remember": {
+      "description": "Store a note in durable thread memory under a key.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value"
+        ]
+      },
+      "builtin": "kv_set"
+    },
+    "recall": {
+      "description": "Read a note from durable thread memory by key.",
+      "args": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ]
+      },
+      "builtin": "kv_get"
+    }
+  },
+  "agents": {
+    "ops_helper": {
+      "name": "ops_helper",
+      "title": "Ops Helper",
+      "description": "Local LLM agent with tools",
+      "sideA": {
+        "prompt": "ops_main",
+        "stopOnResponse": true,
+        "maxSteps": 8
+      },
+      "sideB": {
+        "human": true
+      }
+    },
+    "echo_bot": {
+      "name": "echo_bot",
+      "title": "Echo Bot",
+      "description": "Deterministic mock agent (no LLM)",
+      "sideA": {
+        "prompt": "echo_main",
+        "maxSteps": 4
+      },
+      "sideB": {
+        "human": true
+      }
+    },
+    "ops_helper_claude": {
+      "name": "ops_helper_claude",
+      "title": "Ops Helper (Claude subscription)",
+      "description": "Uses your local claude CLI login",
+      "sideA": {
+        "prompt": "ops_claude",
+        "maxSteps": 8
+      },
+      "sideB": {
+        "human": true
+      }
+    },
+    "ops_helper_codex": {
+      "name": "ops_helper_codex",
+      "title": "Ops Helper (Codex subscription)",
+      "description": "Uses your local codex CLI login",
+      "sideA": {
+        "prompt": "ops_codex",
+        "maxSteps": 8
+      },
+      "sideB": {
+        "human": true
+      }
+    }
+  }
+}
