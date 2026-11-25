@@ -10,7 +10,7 @@ using Microsoft.AspNetCore.TestHost;
 using StandardAgents.Cli;
 using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 public sealed class HttpApiTests : IAsyncLifetime
 {

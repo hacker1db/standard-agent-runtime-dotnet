@@ -127,7 +127,7 @@ public sealed class Store
     /// <summary>Marks the thread terminated (µs, Client API §3.3). Idempotent.</summary>
     public void Terminate(string id) => Run("UPDATE threads SET terminated=COALESCE(terminated,$n) WHERE id=$id", ("$n", NowMicros()), ("$id", id));
 
-    void Touch(SqliteConnection c, string id) => Exec(c, "UPDATE threads SET last_activity_at=$n WHERE id=$id", ("$n", NowSeconds()), ("$id", id));
+    static void Touch(SqliteConnection c, string id) => Exec(c, "UPDATE threads SET last_activity_at=$n WHERE id=$id", ("$n", NowSeconds()), ("$id", id));
 
     public bool DeleteThread(string id)
     {

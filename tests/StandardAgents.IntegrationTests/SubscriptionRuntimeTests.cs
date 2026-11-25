@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 /// <summary>Full step loop over a subscription provider, with the CLI replaced by <see cref="FakeCli"/>.</summary>
 [Trait("Category", "Integration")]

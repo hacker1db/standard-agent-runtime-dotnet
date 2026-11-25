@@ -1,0 +1,5 @@
+root = false
+
+[*.cs]
+# Inline expected arrays read better in assertions.
+dotnet_diagnostic.CA1861.severity = none

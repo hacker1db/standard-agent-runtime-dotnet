@@ -1,7 +1,7 @@
-using StandardAgents.Runtime;
 using System.Text.Json.Nodes;
+using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.UnitTests;
 
 public sealed class CliProviderTests
 {

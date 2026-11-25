@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.TestHost;
 using StandardAgents.Cli;
 using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.UnitTests;
 
 public sealed class RuntimeTests : IDisposable
 {

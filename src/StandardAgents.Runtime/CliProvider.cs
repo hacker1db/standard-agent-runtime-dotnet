@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -60,13 +61,13 @@ public sealed class CliProvider : IProvider
             switch (m.Role)
             {
                 case "system": system.Append(content); break;
-                case "user": transcript.Append($"[user]\n{content}\n\n"); break;
+                case "user": transcript.Append(CultureInfo.InvariantCulture, $"[user]\n{content}\n\n"); break;
                 case "assistant":
-                    if (content.Length > 0) transcript.Append($"[assistant]\n{content}\n\n");
+                    if (content.Length > 0) transcript.Append(CultureInfo.InvariantCulture, $"[assistant]\n{content}\n\n");
                     foreach (var tc in m.ToolCalls ?? [])
-                        transcript.Append($"[assistant tool call id={tc.Id}]\n{tc.Name} {(string.IsNullOrEmpty(tc.Arguments) ? "{}" : tc.Arguments)}\n\n");
+                        transcript.Append(CultureInfo.InvariantCulture, $"[assistant tool call id={tc.Id}]\n{tc.Name} {(string.IsNullOrEmpty(tc.Arguments) ? "{}" : tc.Arguments)}\n\n");
                     break;
-                case "tool": transcript.Append($"[tool result id={m.ToolCallId ?? ""}]\n{content}\n\n"); break;
+                case "tool": transcript.Append(CultureInfo.InvariantCulture, $"[tool result id={m.ToolCallId ?? ""}]\n{content}\n\n"); break;
             }
         }
         if (req.Tools.Count > 0)

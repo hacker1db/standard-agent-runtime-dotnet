@@ -1,6 +1,6 @@
 using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 /// <summary>
 /// Opt-in checks against the real CLIs and your own subscription login. No API key is used.
