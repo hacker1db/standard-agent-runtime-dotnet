@@ -26,6 +26,7 @@ dotnet test tests/StandardAgents.UnitTests
 dotnet test tests/StandardAgents.IntegrationTests
 dotnet format StandardAgents.sln --verify-no-changes   # lint (CI also builds with analyzers, warnings as errors)
 (cd ui && npm ci && npm run build)                     # web UI
+betterleaks git . --redact --no-banner                 # secret scan (CI runs the same check)
 ```
 
 ## Demo with the web UI
