@@ -1,0 +1,15 @@
+{
+  "name": "standardagent-demo",
+  "version": "0.1.0",
+  "keywords": [
+    "standardagent"
+  ],
+  "standardagent": {
+    "entryAgents": [
+      "ops_helper",
+      "echo_bot",
+      "ops_helper_claude",
+      "ops_helper_codex"
+    ]
+  }
+}
