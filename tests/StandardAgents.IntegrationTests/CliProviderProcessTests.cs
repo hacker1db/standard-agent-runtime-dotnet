@@ -113,7 +113,7 @@ public sealed class CliProviderProcessTests : IDisposable
     }
 
     [Fact]
-    public async Task ApiKeysAreNotPassedToTheCliAndItRunsInTheTempDir()
+    public async Task ApiKeysAreNotPassedToTheCliAndItRunsInAPrivateEmptyDir()
     {
         const string var = "ANTHROPIC_API_KEY";
         var before = Environment.GetEnvironmentVariable(var);
@@ -128,7 +128,11 @@ public sealed class CliProviderProcessTests : IDisposable
         var env = _cli.Env();
         foreach (var k in new[] { "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT" })
             Assert.False(env.ContainsKey(k), $"{k} reached the CLI");
-        Assert.Equal(Path.GetFullPath(Path.GetTempPath()).TrimEnd('/'), Path.GetFullPath(_cli.Cwd()).TrimEnd('/'));
+        var cwd = _cli.Cwd();
+        Assert.StartsWith("sa-cli-", Path.GetFileName(cwd));
+        Assert.NotEqual(Path.GetFullPath(Path.GetTempPath()).TrimEnd('/'), cwd.TrimEnd('/'));
+        Assert.Equal("drwx------", _cli.Mode());
+        Assert.False(Directory.Exists(cwd), "work dir must be deleted after the call");
     }
 
     [Fact]

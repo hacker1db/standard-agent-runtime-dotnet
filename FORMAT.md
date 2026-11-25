@@ -69,8 +69,9 @@ step loop (stopOnResponse) and returns its final text as the tool result.
 
 ## HTTP (Thread Client API), prefix `/api`
 
-Bearer auth (`AGENT_RUNTIME_TOKEN`; default `dev-token` only when bound to loopback; empty token
-rejected; constant-time compare). Every error is `{error:{code,message}}`; internal failures 5xx.
+Bearer auth (`AGENT_RUNTIME_TOKEN`; when unset on a loopback bind, a random per-run token is generated and printed; empty token
+rejected; constant-time compare). On a loopback bind, requests whose `Host` or `Origin` is not a
+loopback name get 403 (DNS-rebinding and cross-site defense). Every error is `{error:{code,message}}`; internal failures 5xx.
 
 | Route | Notes |
 |---|---|
@@ -114,7 +115,8 @@ The web UI (`ui/`, built on `@standardagents/react`) is served by the runtime at
 
 `model: "default"` omits the model flag. The child process gets `ANTHROPIC_API_KEY`,
 `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `CLAUDECODE`, `CLAUDE_CODE_ENTRYPOINT` removed and
-cwd = temp dir. The CLI's own tools are off (claude) / read-only sandbox (codex); the runtime
+cwd = a fresh owner-only temp dir per call (deleted afterwards). The CLI's own tools are off
+(claude) / read-only sandbox (codex, which can still read files the user can read); the runtime
 executes tools itself. Tools are described in the system prompt and the model must reply with
 one JSON object: `{"tool_calls":[{"name":..,"arguments":{..}}]}` or `{"content":".."}`
 (first balanced JSON object in the output is used; otherwise the whole text is the answer).

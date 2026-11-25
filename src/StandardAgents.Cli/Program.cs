@@ -33,15 +33,17 @@ try
             var loopback = host == "localhost" || (IPAddress.TryParse(host, out var ip) && IPAddress.IsLoopback(ip));
             var envToken = Environment.GetEnvironmentVariable("AGENT_RUNTIME_TOKEN");
             if (envToken is { Length: 0 }) throw new ArgumentException("AGENT_RUNTIME_TOKEN is set but empty");
-            var token = envToken ?? (loopback ? "dev-token" : throw new ArgumentException("AGENT_RUNTIME_TOKEN is required when not bound to loopback"));
+            var token = envToken ?? (loopback ? Api.NewToken() : throw new ArgumentException("AGENT_RUNTIME_TOKEN is required when not bound to loopback"));
             if (!loopback && !opts.ContainsKey("allow-remote") && package.Models.Values.FirstOrDefault(m => CliProvider.Kinds.Contains(m.Provider)) is { } cliModel)
                 throw new ArgumentException($"model '{cliModel.Name}' uses the local {cliModel.Provider} subscription login; bind to loopback or pass --allow-remote");
             var ui = opts.GetValueOrDefault("ui");
             if (ui is not null && !Directory.Exists(ui)) throw new ArgumentException($"--ui directory not found: {ui}");
-            var app = Api.Build(rt, token, uiDir: ui);
+            var app = Api.Build(rt, token, uiDir: ui, loopbackOnly: loopback);
             rt.Recover();
             var url = $"http://{(host.Contains(':') ? $"[{host}]" : host)}:{Opt("port", "8788")}";
             Console.WriteLine($"serving package '{package.Name}' on {url}/api{(ui is null ? "" : $" (ui at {url}/)")}");
+            if (envToken is null)
+                Console.WriteLine(ui is null ? $"bearer token for this run: {token}" : $"bearer token for this run: {token}\nopen the UI: {url}/#token={token}");
             await app.RunAsync(url);
             return 0;
 

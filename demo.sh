@@ -7,7 +7,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=$PWD
-TOKEN=${AGENT_RUNTIME_TOKEN:-dev-token}; ADDR=127.0.0.1:8787; API=http://$ADDR/api
+TOKEN=${AGENT_RUNTIME_TOKEN:-$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')}; ADDR=127.0.0.1:8787; API=http://$ADDR/api
 [ -d ui/node_modules ] || (cd ui && npm ci --silent)
 (cd ui && npm run -s build >/dev/null)
 DB=$(mktemp -d)/demo.db
@@ -17,7 +17,7 @@ AGENT_RUNTIME_TOKEN=$TOKEN dotnet src/StandardAgents.Cli/bin/Debug/net10.0/Stand
 PID=$!
 trap 'kill $PID 2>/dev/null' EXIT
 until curl -sf -H "Authorization: Bearer $TOKEN" $API/agents >/dev/null; do sleep 0.3; done
-echo; echo "  ▶ Web UI:  http://$ADDR/   (token: $TOKEN)"; echo
+echo; echo "  ▶ Web UI:  http://$ADDR/#token=$TOKEN"; echo
 h=(-sS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json')
 if [ "${DEMO_SCRIPT:-1}" != 0 ]; then
   echo "== agents"; curl "${h[@]}" $API/agents | jq -c '.agents[] | {id,title}'
