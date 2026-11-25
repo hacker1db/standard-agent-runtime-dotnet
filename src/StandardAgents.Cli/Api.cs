@@ -53,7 +53,7 @@ public static partial class Api
     /// <summary>Client API §4.2: normalized path beneath the prefix, no query/fragment, no encoded separators.</summary>
     public static bool IsNormalizedApiPath(string p)
     {
-        if (!p.StartsWith(Prefix + "/") || p.Contains('?') || p.Contains('#') || p.Contains('\\')) return false;
+        if (!p.StartsWith(Prefix + "/", StringComparison.Ordinal) || p.Contains('?') || p.Contains('#') || p.Contains('\\')) return false;
         if (Regex.IsMatch(p, "%(2e|2f|5c)", RegexOptions.IgnoreCase)) return false;
         return p[1..].Split('/').All(s => s.Length > 0 && s != "." && s != "..");
     }
@@ -396,7 +396,7 @@ public static partial class Api
                 }
                 catch (Exception e) when (e is WebSocketException or OperationCanceledException) { }
                 finally { conn.Out.Writer.TryComplete(); }
-            });
+            }, CancellationToken.None);
             try
             {
                 await foreach (var frame in conn.Out.Reader.ReadAllAsync(cts.Token))

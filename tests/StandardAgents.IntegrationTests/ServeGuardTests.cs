@@ -1,6 +1,6 @@
 using System.Diagnostics;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 /// <summary>`serve` keeps subscription-backed packages on loopback unless --allow-remote is passed.</summary>
 [Trait("Category", "Integration")]

@@ -1,7 +1,8 @@
+using System.Globalization;
 using System.Text.Json.Nodes;
 using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 /// <summary>
 /// A stand-in for the <c>claude</c> / <c>codex</c> CLIs: a bash script that records its argv,
@@ -52,11 +53,11 @@ public sealed class FakeCli : IDisposable
         return this;
     }
 
-    public FakeCli ExitWith(int code) { File.WriteAllText(Path.Combine(Dir, "exit"), code.ToString()); return this; }
-    public FakeCli SleepFor(int seconds) { File.WriteAllText(Path.Combine(Dir, "sleep"), seconds.ToString()); return this; }
+    public FakeCli ExitWith(int code) { File.WriteAllText(Path.Combine(Dir, "exit"), code.ToString(CultureInfo.InvariantCulture)); return this; }
+    public FakeCli SleepFor(int seconds) { File.WriteAllText(Path.Combine(Dir, "sleep"), seconds.ToString(CultureInfo.InvariantCulture)); return this; }
     public FakeCli NoOutputFile() { File.WriteAllText(Path.Combine(Dir, "no-output"), ""); return this; }
 
-    public int Calls => File.Exists(Path.Combine(Dir, "count")) ? int.Parse(File.ReadAllText(Path.Combine(Dir, "count")).Trim()) : 0;
+    public int Calls => File.Exists(Path.Combine(Dir, "count")) ? int.Parse(File.ReadAllText(Path.Combine(Dir, "count")).Trim(), CultureInfo.InvariantCulture) : 0;
     public string[] Args(int call = 1) => File.ReadAllLines(Path.Combine(Dir, $"args.{call}"));
     public string Stdin(int call = 1) => File.ReadAllText(Path.Combine(Dir, $"stdin.{call}"));
     public string Cwd(int call = 1) => File.ReadAllText(Path.Combine(Dir, $"cwd.{call}")).Trim();

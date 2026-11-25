@@ -1,4 +1,4 @@
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 /// <summary>
 /// A test that calls the real <c>claude</c> or <c>codex</c> CLI with your local subscription login.

@@ -18,7 +18,7 @@ public sealed record ModelResponse(string? Text, IReadOnlyList<ToolCall> ToolCal
 
 public interface IProvider
 {
-    Task<ModelResponse> CompleteAsync(ModelRequest request, CancellationToken ct);
+    Task<ModelResponse> CompleteAsync(ModelRequest req, CancellationToken ct);
 }
 
 /// <summary>Deterministic provider: "/tool NAME JSON" as last user message emits that call, else echoes.</summary>
@@ -27,15 +27,15 @@ public sealed partial class MockProvider : IProvider
     [GeneratedRegex(@"^/tool\s+(\S+)\s*(.*)$", RegexOptions.Singleline)]
     private static partial Regex ToolCommand();
 
-    public Task<ModelResponse> CompleteAsync(ModelRequest request, CancellationToken ct)
+    public Task<ModelResponse> CompleteAsync(ModelRequest req, CancellationToken ct)
     {
-        var last = request.Messages.LastOrDefault(m => m.Role != "system");
+        var last = req.Messages.LastOrDefault(m => m.Role != "system");
         if (last is { Role: "user" } && ToolCommand().Match(last.Content ?? "") is { Success: true } m)
         {
             var args = string.IsNullOrWhiteSpace(m.Groups[2].Value) ? "{}" : m.Groups[2].Value.Trim();
             return Task.FromResult(new ModelResponse(null, [new ToolCall("call_" + Guid.NewGuid().ToString("N")[..12], m.Groups[1].Value, args)]));
         }
-        var lastUser = request.Messages.LastOrDefault(x => x.Role == "user")?.Content ?? "";
+        var lastUser = req.Messages.LastOrDefault(x => x.Role == "user")?.Content ?? "";
         return Task.FromResult(new ModelResponse($"echo: {lastUser}", []));
     }
 }

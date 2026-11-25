@@ -1,5 +1,7 @@
 # standard-agent-runtime-dotnet
 
+[![CI](https://github.com/hacker1db/standard-agent-runtime-dotnet/actions/workflows/ci.yml/badge.svg)](https://github.com/hacker1db/standard-agent-runtime-dotnet/actions/workflows/ci.yml)
+
 > **Status: experimental.** The core step loop, tools, and Thread Client API work; see [Known gaps](#known-gaps).
 
 A .NET 10 (LTS) runtime for the Standard Agent Specification v0.2.0 that loads the declarative JSON packages described in [`FORMAT.md`](FORMAT.md).
@@ -10,15 +12,20 @@ A .NET 10 (LTS) runtime for the Standard Agent Specification v0.2.0 that loads t
 | `src/StandardAgents.Cli` | `serve`, `chat`, and `run` commands, plus the `/api` HTTP surface (`Api.cs`) |
 | `ui/` | Web chat UI built on `@standardagents/react`, served at `/` with `serve --ui ui/dist` |
 | `examples/demo-agent/` | Demo package: `ops_helper` (Ollama), `ops_helper_claude` / `ops_helper_codex` (subscription CLIs), `echo_bot` (mock) |
-| `tests/StandardAgents.Tests` | xunit tests; no network, login, or API key (the calculator test needs `python3`) |
+| `tests/StandardAgents.UnitTests` | package loading, interpolation, step loop, stop order, reply parsing (mock provider) |
+| `tests/StandardAgents.IntegrationTests` | HTTP API and WebSockets, SQLite store, subprocess tools, subscription providers against a fake CLI, `serve` guard |
 
 ## Build and test
 
-Requires the .NET 10 SDK (pinned in `global.json`, any 10.0.x feature band).
+Requires the .NET 10 SDK (pinned in `global.json`, any 10.0.x feature band). Tests need `python3` for the
+calculator tool and `bash` for the fake CLI; no network, login, or API key.
 
 ```bash
 dotnet build StandardAgents.sln
-dotnet test StandardAgents.sln
+dotnet test tests/StandardAgents.UnitTests
+dotnet test tests/StandardAgents.IntegrationTests
+dotnet format StandardAgents.sln --verify-no-changes   # lint (CI also builds with analyzers, warnings as errors)
+(cd ui && npm ci && npm run build)                     # web UI
 ```
 
 ## Demo with the web UI

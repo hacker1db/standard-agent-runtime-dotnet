@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using StandardAgents.Runtime;
 
-namespace StandardAgents.Tests;
+namespace StandardAgents.IntegrationTests;
 
 /// <summary>Runs the subscription providers against <see cref="FakeCli"/>: no login, no network, no API key.</summary>
 [Trait("Category", "Integration")]
