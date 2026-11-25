@@ -12,7 +12,7 @@ TOKEN=${AGENT_RUNTIME_TOKEN:-dev-token}; ADDR=127.0.0.1:8787; API=http://$ADDR/a
 (cd ui && npm run -s build >/dev/null)
 DB=$(mktemp -d)/demo.db
 dotnet build -v q StandardAgents.sln >/dev/null
-AGENT_RUNTIME_TOKEN=$TOKEN dotnet src/StandardAgents.Cli/bin/Debug/net11.0/StandardAgents.Cli.dll serve \
+AGENT_RUNTIME_TOKEN=$TOKEN dotnet src/StandardAgents.Cli/bin/Debug/net10.0/StandardAgents.Cli.dll serve \
   --package "$ROOT/examples/demo-agent" --port 8787 --db "$DB" --ui "$ROOT/ui/dist" &
 PID=$!
 trap 'kill $PID 2>/dev/null' EXIT
