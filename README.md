@@ -51,13 +51,13 @@ $CLI run --package examples/demo-agent --agent ops_helper --message "what is 17*
 $CLI chat --package examples/demo-agent --agent ops_helper --db chat.db
 
 # HTTP server
-AGENT_RUNTIME_TOKEN=dev-token $CLI serve --package examples/demo-agent --port 8788 --db agents.db
+$CLI serve --package examples/demo-agent --port 8788 --db agents.db   # prints a random bearer token; or set AGENT_RUNTIME_TOKEN
 ```
 
 ### HTTP example
 
 ```bash
-H="Authorization: Bearer dev-token"
+H="Authorization: Bearer $TOKEN"   # the token serve printed
 TID=$(curl -s -H "$H" -H 'content-type: application/json' -d '{"agent_id":"echo_bot"}' localhost:8788/api/threads | jq -r .threadId)
 curl -s -H "$H" -H 'content-type: application/json' -d '{"role":"user","content":"hi"}' localhost:8788/api/threads/$TID/messages   # 202
 curl -s -H "$H" "localhost:8788/api/threads/$TID/messages?order=asc"
@@ -116,9 +116,11 @@ Live tests skip unless `SA_LIVE_SUBSCRIPTION=1` is set and the CLI is on PATH, s
 Built-in safeguards:
 
 - `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` are removed from the child environment, so usage goes to your login, not a key.
-- The CLI runs in the temp dir with its own tools off (claude) or a read-only sandbox (codex); this runtime executes tools itself.
+- Each call runs in a fresh, empty, owner-only (0700) temp directory that is deleted afterwards, so the CLI cannot pick up an `AGENTS.md`, `CLAUDE.md`, or settings file planted in a shared directory.
+- Claude's own tools are off. Codex runs in its `read-only` sandbox, which blocks writes and network access but still lets it **read** any file your user can read, so only use `codex-cli` with packages and prompts you trust. This runtime executes the package's tools itself.
 - Arguments go through `ArgumentList` (no shell); each call has a 600 s timeout.
 - `serve` refuses a non-loopback `--host` when the package has a `claude-cli` or `codex-cli` model, unless you pass `--allow-remote`.
+- On loopback, `serve` generates a random bearer token per run unless `AGENT_RUNTIME_TOKEN` is set, and rejects requests whose `Host` or `Origin` is not a loopback name, so a web page cannot reach the API through DNS rebinding.
 - `SA_CLAUDE_BIN` / `SA_CODEX_BIN` override the executable path (tests use this to substitute a fake).
 
 `model: "default"` omits the model flag. Tools are listed in the system prompt; the model replies with

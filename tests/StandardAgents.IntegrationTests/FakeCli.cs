@@ -21,6 +21,7 @@ public sealed class FakeCli : IDisposable
         cat > "$d/stdin.$n"
         env > "$d/env.$n"
         pwd > "$d/cwd.$n"
+        ls -ld . | cut -c1-10 > "$d/mode.$n"
         [ -f "$d/sleep" ] && sleep "$(cat "$d/sleep")"
         [ -f "$d/exit" ] && { echo "fake failure" >&2; exit "$(cat "$d/exit")"; }
         reply="$d/reply.$n"; [ -f "$reply" ] || reply="$d/reply"
@@ -60,6 +61,7 @@ public sealed class FakeCli : IDisposable
     public int Calls => File.Exists(Path.Combine(Dir, "count")) ? int.Parse(File.ReadAllText(Path.Combine(Dir, "count")).Trim(), CultureInfo.InvariantCulture) : 0;
     public string[] Args(int call = 1) => File.ReadAllLines(Path.Combine(Dir, $"args.{call}"));
     public string Stdin(int call = 1) => File.ReadAllText(Path.Combine(Dir, $"stdin.{call}"));
+    public string Mode(int call = 1) => File.ReadAllText(Path.Combine(Dir, $"mode.{call}")).Trim();
     public string Cwd(int call = 1) => File.ReadAllText(Path.Combine(Dir, $"cwd.{call}")).Trim();
     public Dictionary<string, string> Env(int call = 1) => File.ReadAllLines(Path.Combine(Dir, $"env.{call}"))
         .Select(l => l.Split('=', 2)).Where(p => p.Length == 2).GroupBy(p => p[0]).ToDictionary(g => g.Key, g => g.First()[1]);

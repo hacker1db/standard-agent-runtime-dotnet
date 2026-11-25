@@ -3,13 +3,19 @@ import { AgentBuilderClient, AgentBuilderProvider, ThreadProvider, type AgentLis
 import { ENDPOINT, deleteThread, getToken, listThreads, setToken, type ThreadListEntry } from "./api";
 import { ChatPane } from "./Chat";
 
-const DEFAULT_TOKEN = "dev-token";
+/** `serve` prints `/#token=...`; take the token from the fragment once, then drop it from the URL. */
+function tokenFromFragment(): string | null {
+  const match = /(?:^|&)token=([^&]+)/.exec(window.location.hash.slice(1));
+  if (!match) return null;
+  history.replaceState(null, "", window.location.pathname + window.location.search);
+  return decodeURIComponent(match[1]);
+}
 
 export function App() {
   const [token, setTokenState] = useState(() => {
-    const t = getToken();
-    if (!t) setToken(DEFAULT_TOKEN);
-    return t || DEFAULT_TOKEN;
+    const fromUrl = tokenFromFragment();
+    if (fromUrl) setToken(fromUrl);
+    return fromUrl ?? getToken();
   });
   const [tokenDraft, setTokenDraft] = useState(token);
   const client = useMemo(() => new AgentBuilderClient(ENDPOINT), []);

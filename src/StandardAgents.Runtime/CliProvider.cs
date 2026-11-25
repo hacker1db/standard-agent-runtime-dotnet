@@ -136,11 +136,19 @@ public sealed class CliProvider : IProvider
         return null;
     }
 
-    ProcessStartInfo BaseStart()
+    /// <summary>
+    /// A fresh, empty, owner-only (0700 on Unix) working directory per call, so the CLI never picks up
+    /// project instructions (AGENTS.md, CLAUDE.md, settings) planted in a shared directory such as /tmp.
+    /// </summary>
+    static DirectoryInfo PrivateWorkDir() => Directory.CreateTempSubdirectory("sa-cli-");
+
+    static void TryDelete(DirectoryInfo dir) { try { dir.Delete(recursive: true); } catch (IOException) { } catch (UnauthorizedAccessException) { } }
+
+    ProcessStartInfo BaseStart(DirectoryInfo workDir)
     {
         var psi = new ProcessStartInfo(_bin)
         {
-            WorkingDirectory = Path.GetTempPath(),
+            WorkingDirectory = workDir.FullName,
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
             UseShellExecute = false,
             StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
@@ -180,11 +188,17 @@ public sealed class CliProvider : IProvider
 
     async Task<string> ClaudeAsync(ModelDef model, string system, string transcript, CancellationToken ct)
     {
-        var psi = BaseStart();
-        foreach (var a in new[] { "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--setting-sources", "", "--system-prompt", system })
-            psi.ArgumentList.Add(a);
-        if (model.Model != "default") { psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(model.Model); }
-        var output = await RunAsync(psi, transcript, ct);
+        var workDir = PrivateWorkDir();
+        string output;
+        try
+        {
+            var psi = BaseStart(workDir);
+            foreach (var a in new[] { "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--setting-sources", "", "--system-prompt", system })
+                psi.ArgumentList.Add(a);
+            if (model.Model != "default") { psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(model.Model); }
+            output = await RunAsync(psi, transcript, ct);
+        }
+        finally { TryDelete(workDir); }
         JsonNode? v;
         try { v = JsonNode.Parse(output.Trim()); } catch (JsonException e) { throw new InvalidOperationException("claude returned non-JSON", e); }
         if (v?["is_error"] is JsonValue err && err.GetValueKind() == JsonValueKind.True)
@@ -195,8 +209,9 @@ public sealed class CliProvider : IProvider
 
     async Task<string> CodexAsync(ModelDef model, string prompt, CancellationToken ct)
     {
-        var outFile = Path.Combine(Path.GetTempPath(), $"sa-codex-{Guid.NewGuid():N}.txt");
-        var psi = BaseStart();
+        var workDir = PrivateWorkDir();
+        var outFile = Path.Combine(workDir.FullName, "final-message.txt");
+        var psi = BaseStart(workDir);
         foreach (var a in new[] { "exec", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "--color", "never", "-o", outFile })
             psi.ArgumentList.Add(a);
         if (model.Model != "default") { psi.ArgumentList.Add("-m"); psi.ArgumentList.Add(model.Model); }
@@ -207,6 +222,6 @@ public sealed class CliProvider : IProvider
             try { return await File.ReadAllTextAsync(outFile, ct); }
             catch (IOException e) { throw new InvalidOperationException("codex produced no final message", e); }
         }
-        finally { try { File.Delete(outFile); } catch { } }
+        finally { TryDelete(workDir); }
     }
 }

@@ -18,16 +18,41 @@ public static partial class Api
     public const string Prefix = "/api";
     public static readonly TimeSpan TicketLifetime = TimeSpan.FromSeconds(60);
 
-    public static WebApplication Build(AgentRuntime rt, string token, Action<WebApplicationBuilder>? configure = null, string? uiDir = null)
+    /// <param name="loopbackOnly">Reject requests whose Host or Origin is not a loopback name (DNS-rebinding and cross-site defense for local serving).</param>
+    public static WebApplication Build(AgentRuntime rt, string token, Action<WebApplicationBuilder>? configure = null, string? uiDir = null, bool loopbackOnly = false)
     {
         if (string.IsNullOrEmpty(token)) throw new ArgumentException("the API token must not be empty");
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.SetMinimumLevel(LogLevel.Warning);
         configure?.Invoke(builder);
         var app = builder.Build();
+        if (loopbackOnly) app.Use(async (ctx, next) =>
+        {
+            if (!IsLoopbackHost(ctx.Request.Host.Host) || (ctx.Request.Headers.Origin is { Count: > 0 } origin && !IsLoopbackOrigin(origin.ToString())))
+            {
+                await WriteError(ctx, 403, "forbidden", "only loopback Host and Origin are accepted");
+                return;
+            }
+            await next();
+        });
         Map(app, rt, token, uiDir);
         return app;
     }
+
+    /// <summary>True for <c>localhost</c>, <c>127.0.0.0/8</c>, and <c>::1</c> (any port).</summary>
+    public static bool IsLoopbackHost(string host)
+    {
+        host = host.Trim('[', ']');
+        return host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || (System.Net.IPAddress.TryParse(host, out var ip) && System.Net.IPAddress.IsLoopback(ip));
+    }
+
+    /// <summary>True when an Origin header names an http(s) loopback host.</summary>
+    public static bool IsLoopbackOrigin(string origin) =>
+        Uri.TryCreate(origin, UriKind.Absolute, out var u) && (u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps) && IsLoopbackHost(u.Host);
+
+    /// <summary>A random 256-bit bearer token (base64url).</summary>
+    public static string NewToken() => Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)).TrimEnd('=').Replace('+', '-').Replace('/', '_');
 
     static IResult Error(int status, string code, string message) =>
         Results.Json(new { error = new { code, message } }, statusCode: status);
