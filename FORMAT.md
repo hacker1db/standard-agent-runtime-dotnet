@@ -20,7 +20,7 @@ my-package/
 ```jsonc
 {
   "models":  { "local": { "name": "local", "provider": "openai", "model": "qwen2.5:3b",
-                          "baseUrl": "http://localhost:11434/v1", "apiKeyEnv": "OPENAI_API_KEY",
+                          "baseUrl": "http://localhost:11434/v1", "apiKeyEnv": "OPENAI_API_KEY",  // optional: no key → no Authorization header
                           "fallbacks": [] } },
   "prompts": { "main": { "name": "main", "toolDescription": "...", "model": "local",
                          "prompt": "text with {{VAR}}" | [ {"type":"text","content":"..."}, {"type":"include","prompt":"other"} ],
@@ -120,3 +120,5 @@ one JSON object: `{"tool_calls":[{"name":..,"arguments":{..}}]}` or `{"content":
 (first balanced JSON object in the output is used; otherwise the whole text is the answer).
 Only the vendors' official CLIs are invoked in their documented headless modes; no tokens are
 read or replayed.
+`SA_CLAUDE_BIN` / `SA_CODEX_BIN` override the executable. `serve` refuses a non-loopback bind for
+a package with a CLI-backed model unless `--allow-remote` is given.

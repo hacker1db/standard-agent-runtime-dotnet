@@ -12,20 +12,40 @@ namespace StandardAgents.Runtime;
 /// own tools are disabled / sandboxed read-only; this runtime executes tools via a JSON reply
 /// protocol embedded in the prompt. No tokens are read or replayed.
 /// </summary>
-public sealed class CliProvider(string kind) : IProvider
+public sealed class CliProvider : IProvider
 {
-    public static readonly TimeSpan Timeout = TimeSpan.FromSeconds(600);
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(600);
     static readonly string[] RemovedEnv = ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "OPENAI_API_KEY", "CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"];
+
+    readonly string _kind;
+    readonly string _bin;
+    readonly TimeSpan _timeout;
+
+    /// <param name="kind"><c>claude-cli</c> or <c>codex-cli</c>.</param>
+    /// <param name="bin">CLI executable. Defaults to <c>SA_CLAUDE_BIN</c> / <c>SA_CODEX_BIN</c>, then <c>claude</c> / <c>codex</c> on PATH.</param>
+    /// <param name="timeout">Per-call timeout. Defaults to <see cref="DefaultTimeout"/>.</param>
+    public CliProvider(string kind, string? bin = null, TimeSpan? timeout = null)
+    {
+        var (envVar, fallback) = kind switch
+        {
+            "claude-cli" => ("SA_CLAUDE_BIN", "claude"),
+            "codex-cli" => ("SA_CODEX_BIN", "codex"),
+            _ => throw new NotSupportedException($"unknown cli provider {kind}"),
+        };
+        _kind = kind;
+        _bin = bin ?? (Environment.GetEnvironmentVariable(envVar) is { Length: > 0 } v ? v : fallback);
+        _timeout = timeout ?? DefaultTimeout;
+    }
+
+    /// <summary>Provider names that run a local, logged-in subscription CLI.</summary>
+    public static readonly IReadOnlySet<string> Kinds = new HashSet<string> { "claude-cli", "codex-cli" };
 
     public async Task<ModelResponse> CompleteAsync(ModelRequest req, CancellationToken ct)
     {
         var (system, transcript) = Render(req);
-        var text = kind switch
-        {
-            "claude-cli" => await ClaudeAsync(req.Model, system, transcript, ct),
-            "codex-cli" => await CodexAsync(req.Model, $"{system}\n\n{transcript}", ct),
-            _ => throw new NotSupportedException($"unknown cli provider {kind}"),
-        };
+        var text = _kind == "claude-cli"
+            ? await ClaudeAsync(req.Model, system, transcript, ct)
+            : await CodexAsync(req.Model, $"{system}\n\n{transcript}", ct);
         return ParseReply(text, req.Tools.Count > 0);
     }
 
@@ -115,9 +135,9 @@ public sealed class CliProvider(string kind) : IProvider
         return null;
     }
 
-    static ProcessStartInfo BaseStart(string bin)
+    ProcessStartInfo BaseStart()
     {
-        var psi = new ProcessStartInfo(bin)
+        var psi = new ProcessStartInfo(_bin)
         {
             WorkingDirectory = Path.GetTempPath(),
             RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true,
@@ -128,10 +148,10 @@ public sealed class CliProvider(string kind) : IProvider
         return psi;
     }
 
-    static async Task<string> RunAsync(ProcessStartInfo psi, string stdin, CancellationToken ct)
+    async Task<string> RunAsync(ProcessStartInfo psi, string stdin, CancellationToken ct)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        timeout.CancelAfter(Timeout);
+        timeout.CancelAfter(_timeout);
         Process proc;
         try { proc = Process.Start(psi) ?? throw new InvalidOperationException("failed to start CLI"); }
         catch (System.ComponentModel.Win32Exception e) { throw new InvalidOperationException($"failed to start CLI '{psi.FileName}' (is it installed and on PATH?): {e.Message}", e); }
@@ -157,9 +177,9 @@ public sealed class CliProvider(string kind) : IProvider
         }
     }
 
-    static async Task<string> ClaudeAsync(ModelDef model, string system, string transcript, CancellationToken ct)
+    async Task<string> ClaudeAsync(ModelDef model, string system, string transcript, CancellationToken ct)
     {
-        var psi = BaseStart("claude");
+        var psi = BaseStart();
         foreach (var a in new[] { "-p", "--output-format", "json", "--tools", "", "--strict-mcp-config", "--no-session-persistence", "--setting-sources", "", "--system-prompt", system })
             psi.ArgumentList.Add(a);
         if (model.Model != "default") { psi.ArgumentList.Add("--model"); psi.ArgumentList.Add(model.Model); }
@@ -172,10 +192,10 @@ public sealed class CliProvider(string kind) : IProvider
             : throw new InvalidOperationException("claude output missing `result`");
     }
 
-    static async Task<string> CodexAsync(ModelDef model, string prompt, CancellationToken ct)
+    async Task<string> CodexAsync(ModelDef model, string prompt, CancellationToken ct)
     {
         var outFile = Path.Combine(Path.GetTempPath(), $"sa-codex-{Guid.NewGuid():N}.txt");
-        var psi = BaseStart("codex");
+        var psi = BaseStart();
         foreach (var a in new[] { "exec", "--skip-git-repo-check", "--ephemeral", "--sandbox", "read-only", "--color", "never", "-o", outFile })
             psi.ArgumentList.Add(a);
         if (model.Model != "default") { psi.ArgumentList.Add("-m"); psi.ArgumentList.Add(model.Model); }

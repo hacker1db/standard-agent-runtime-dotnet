@@ -10,7 +10,7 @@ A .NET 10 (LTS) runtime for the Standard Agent Specification v0.2.0 that loads t
 | `src/StandardAgents.Cli` | `serve`, `chat`, and `run` commands, plus the `/api` HTTP surface (`Api.cs`) |
 | `ui/` | Web chat UI built on `@standardagents/react`, served at `/` with `serve --ui ui/dist` |
 | `examples/demo-agent/` | Demo package: `ops_helper` (Ollama), `ops_helper_claude` / `ops_helper_codex` (subscription CLIs), `echo_bot` (mock) |
-| `tests/StandardAgents.Tests` | xunit tests that use only the mock provider (the calculator test needs `python3`) |
+| `tests/StandardAgents.Tests` | xunit tests; no network, login, or API key (the calculator test needs `python3`) |
 
 ## Build and test
 
@@ -72,24 +72,50 @@ The server implements these routes: `GET /api/agents`, `POST|GET /api/threads`, 
 
 The following are not implemented: WebSocket streams and tickets, handlers, hooks, effects, subagents, attachments and the filesystem, `runCode`, decisions, users, `DELETE /messages/{id}`, and `includeTextResponse` (prompt tools always return their final text). `stop` terminates the thread, as FORMAT.md says. In the spec, `stop` only aborts the run.
 
-## Subscription providers (`claude-cli`, `codex-cli`)
+## Local development with your subscription (no API key)
 
-Extension, not in the spec (see "Subscription providers" in [`FORMAT.md`](FORMAT.md)). `CliProvider.cs` runs the
-official, logged-in CLIs headlessly, so no API key is needed:
+You never need an API key to develop or test locally. Pick one:
+
+| Provider | Uses | Setup |
+|---|---|---|
+| `claude-cli` | your Claude Code login (Pro/Max) | `claude` on PATH, logged in |
+| `codex-cli` | your Codex / ChatGPT login | `codex` on PATH, logged in |
+| `openai` + Ollama | a local model | `ollama pull qwen2.5:3b` (no key; `apiKeyEnv` is optional) |
+| `mock` | deterministic replies | nothing |
+
+```bash
+CLI="dotnet src/StandardAgents.Cli/bin/Debug/net10.0/StandardAgents.Cli.dll"
+$CLI run  --package examples/demo-agent --agent ops_helper_claude --message "What is 17*23? Use the calculator."
+$CLI chat --package examples/demo-agent --agent ops_helper_codex
+```
+
+### Testing
+
+| Command | What runs | Needs |
+|---|---|---|
+| `dotnet test` | unit + integration tests; the subscription providers run against a fake `claude`/`codex` script | nothing (this is what CI runs) |
+| `SA_LIVE_SUBSCRIPTION=1 dotnet test --filter Category=LiveSubscription` | the demo agents against the real CLIs | your local `claude` / `codex` login |
+
+Live tests skip unless `SA_LIVE_SUBSCRIPTION=1` is set and the CLI is on PATH, so CI never touches a subscription.
+
+### How the subscription providers work
+
+`CliProvider.cs` (an extension, not in the spec; see "Subscription providers" in [`FORMAT.md`](FORMAT.md)) runs the official CLIs in their documented headless modes:
 
 - `claude-cli`: `claude -p --output-format json --tools "" --strict-mcp-config --no-session-persistence --setting-sources "" --system-prompt <sys> [--model M]`, transcript on stdin, reads `.result` (fails on `is_error`).
 - `codex-cli`: `codex exec --skip-git-repo-check --ephemeral --sandbox read-only --color never -o <tmp> [-m M] -`, prompt on stdin, reads and deletes `<tmp>`.
 
-`model: "default"` omits the model flag. The child runs in the temp dir with `ANTHROPIC_API_KEY`,
-`ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` removed, a 600 s
-timeout, and arguments passed via `ArgumentList` (no shell). Tools are listed in the system prompt; the
-model replies with `{"tool_calls":[...]}` or `{"content":"..."}` (first balanced JSON object wins,
-otherwise the whole text is the answer), and the runtime executes the tools itself.
+Built-in safeguards:
 
-```bash
-dotnet src/StandardAgents.Cli/bin/Debug/net10.0/StandardAgents.Cli.dll run --package examples/demo-agent \
-  --agent ops_helper_claude --message "What is 17*23? Use the calculator."   # or ops_helper_codex
-```
+- `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `OPENAI_API_KEY`, `CLAUDECODE` and `CLAUDE_CODE_ENTRYPOINT` are removed from the child environment, so usage goes to your login, not a key.
+- The CLI runs in the temp dir with its own tools off (claude) or a read-only sandbox (codex); this runtime executes tools itself.
+- Arguments go through `ArgumentList` (no shell); each call has a 600 s timeout.
+- `serve` refuses a non-loopback `--host` when the package has a `claude-cli` or `codex-cli` model, unless you pass `--allow-remote`.
+- `SA_CLAUDE_BIN` / `SA_CODEX_BIN` override the executable path (tests use this to substitute a fake).
+
+`model: "default"` omits the model flag. Tools are listed in the system prompt; the model replies with
+`{"tool_calls":[...]}` or `{"content":"..."}` (first balanced JSON object wins, otherwise the whole text is
+the answer).
 
 ## License
 
