@@ -2,7 +2,7 @@
 
 > **Status: experimental.** The core step loop, tools, and Thread Client API work; see [Known gaps](#known-gaps).
 
-A .NET 11 runtime for the Standard Agent Specification v0.2.0 that loads the declarative JSON packages described in [`FORMAT.md`](FORMAT.md).
+A .NET 10 (LTS) runtime for the Standard Agent Specification v0.2.0 that loads the declarative JSON packages described in [`FORMAT.md`](FORMAT.md).
 
 | Project | Purpose |
 |---|---|
@@ -13,6 +13,8 @@ A .NET 11 runtime for the Standard Agent Specification v0.2.0 that loads the dec
 | `tests/StandardAgents.Tests` | xunit tests that use only the mock provider (the calculator test needs `python3`) |
 
 ## Build and test
+
+Requires the .NET 10 SDK (pinned in `global.json`, any 10.0.x feature band).
 
 ```bash
 dotnet build StandardAgents.sln
@@ -30,7 +32,7 @@ dotnet test StandardAgents.sln
 `dotnet run` changes the working directory to the project, so pass an absolute `--package` path, or run the built dll:
 
 ```bash
-CLI="dotnet src/StandardAgents.Cli/bin/Debug/net11.0/StandardAgents.Cli.dll"
+CLI="dotnet src/StandardAgents.Cli/bin/Debug/net10.0/StandardAgents.Cli.dll"
 
 # One-shot run (uses a throwaway temp DB unless --db is given)
 $CLI run --package examples/demo-agent --agent echo_bot --message hello
@@ -85,7 +87,7 @@ model replies with `{"tool_calls":[...]}` or `{"content":"..."}` (first balanced
 otherwise the whole text is the answer), and the runtime executes the tools itself.
 
 ```bash
-dotnet src/StandardAgents.Cli/bin/Debug/net11.0/StandardAgents.Cli.dll run --package examples/demo-agent \
+dotnet src/StandardAgents.Cli/bin/Debug/net10.0/StandardAgents.Cli.dll run --package examples/demo-agent \
   --agent ops_helper_claude --message "What is 17*23? Use the calculator."   # or ops_helper_codex
 ```
 
