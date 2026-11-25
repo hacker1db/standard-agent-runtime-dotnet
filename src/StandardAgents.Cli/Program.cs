@@ -4,14 +4,20 @@ using StandardAgents.Runtime;
 
 const string Usage = """
     usage:
-      agents serve --package DIR [--host 127.0.0.1] [--port 8788] [--db FILE] [--ui DIR]
+      agents serve --package DIR [--host 127.0.0.1] [--port 8788] [--db FILE] [--ui DIR] [--allow-remote]
       agents chat  --package DIR --agent NAME [--db FILE]
       agents run   --package DIR --agent NAME --message TEXT [--db FILE]
     """;
 
 if (args.Length == 0) { Console.Error.WriteLine(Usage); return 2; }
 var opts = new Dictionary<string, string>();
-for (var i = 1; i + 1 < args.Length; i += 2) opts[args[i].TrimStart('-')] = args[i + 1];
+string[] flags = ["allow-remote"];
+for (var i = 1; i < args.Length; i++)
+{
+    var key = args[i].TrimStart('-');
+    if (flags.Contains(key)) { opts[key] = "true"; continue; }
+    if (i + 1 < args.Length) opts[key] = args[++i];
+}
 string Opt(string k, string? d = null) => opts.GetValueOrDefault(k) ?? d ?? throw new ArgumentException($"--{k} is required\n{Usage}");
 
 try
@@ -28,6 +34,8 @@ try
             var envToken = Environment.GetEnvironmentVariable("AGENT_RUNTIME_TOKEN");
             if (envToken is { Length: 0 }) throw new ArgumentException("AGENT_RUNTIME_TOKEN is set but empty");
             var token = envToken ?? (loopback ? "dev-token" : throw new ArgumentException("AGENT_RUNTIME_TOKEN is required when not bound to loopback"));
+            if (!loopback && !opts.ContainsKey("allow-remote") && package.Models.Values.FirstOrDefault(m => CliProvider.Kinds.Contains(m.Provider)) is { } cliModel)
+                throw new ArgumentException($"model '{cliModel.Name}' uses the local {cliModel.Provider} subscription login; bind to loopback or pass --allow-remote");
             var ui = opts.GetValueOrDefault("ui");
             if (ui is not null && !Directory.Exists(ui)) throw new ArgumentException($"--ui directory not found: {ui}");
             var app = Api.Build(rt, token, uiDir: ui);

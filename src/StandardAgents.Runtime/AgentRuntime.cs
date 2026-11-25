@@ -9,7 +9,7 @@ namespace StandardAgents.Runtime;
 public sealed class ThreadTerminatedException(string id) : Exception($"thread {id} is terminated");
 
 /// <summary>Executes agents from a package against durable SQLite state (Runtime §3–§14 subset).</summary>
-public sealed class AgentRuntime(AgentPackage package, Store store, HttpClient? http = null)
+public sealed class AgentRuntime(AgentPackage package, Store store, HttpClient? http = null, IReadOnlyDictionary<string, IProvider>? providers = null)
 {
     public static readonly TimeSpan ToolTimeout = TimeSpan.FromSeconds(30);
     public const int MaxToolOutputBytes = 1 << 20;
@@ -24,7 +24,10 @@ public sealed class AgentRuntime(AgentPackage package, Store store, HttpClient? 
     }
 
     readonly ConcurrentDictionary<string, Ctl> _ctl = new();
-    readonly Dictionary<string, IProvider> _providers = new()
+    readonly IReadOnlyDictionary<string, IProvider> _providers = providers ?? DefaultProviders(http);
+
+    /// <summary>The built-in providers. None of them needs an API key: <c>openai</c> sends one only when its env var is set.</summary>
+    public static Dictionary<string, IProvider> DefaultProviders(HttpClient? http = null) => new()
     {
         ["mock"] = new MockProvider(),
         ["openai"] = new OpenAiProvider(http ?? new HttpClient { Timeout = TimeSpan.FromMinutes(5) }),
